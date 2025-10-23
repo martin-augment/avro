@@ -47,7 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
 
@@ -78,7 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
 
@@ -90,7 +90,7 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Setup Python for Generating Input Data
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
 
       - name: Apt Install Compression Libs Required by Python
         run: |
