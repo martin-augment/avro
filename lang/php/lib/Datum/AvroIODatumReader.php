@@ -21,6 +21,7 @@
 namespace Apache\Avro\Datum;
 
 use Apache\Avro\AvroException;
+use Apache\Avro\Schema\AvroLogicalType;
 use Apache\Avro\Schema\AvroName;
 use Apache\Avro\Schema\AvroSchema;
 
@@ -80,7 +81,7 @@ class AvroIODatumReader
     /**
      * @returns mixed
      */
-    public function readData($writers_schema, $readers_schema, $decoder)
+    public function readData(AvroSchema $writers_schema, AvroSchema $readers_schema, AvroIOBinaryDecoder $decoder)
     {
         // Schema resolution: reader's schema is a union, writer's schema is not
         if (
@@ -111,7 +112,8 @@ class AvroIODatumReader
             case AvroSchema::STRING_TYPE:
                 return $decoder->readString();
             case AvroSchema::BYTES_TYPE:
-                return $decoder->readBytes();
+                $bytes = $decoder->readBytes();
+                return $this->readBytes($writers_schema, $readers_schema, $bytes);
             case AvroSchema::ARRAY_SCHEMA:
                 return $this->readArray($writers_schema, $readers_schema, $decoder);
             case AvroSchema::MAP_SCHEMA:
@@ -253,6 +255,27 @@ class AvroIODatumReader
             }
         }
         return true;
+    }
+
+    public function readBytes(AvroSchema $writers_schema, AvroSchema $readers_schema, string $bytes): string
+    {
+        $logicalTypeWriters = $writers_schema->logicalType();
+        if (
+            $logicalTypeWriters instanceof AvroLogicalType
+            && $logicalTypeWriters->name() === AvroSchema::DECIMAL_LOGICAL_TYPE
+        ) {
+            if ($logicalTypeWriters !== $readers_schema->logicalType()) {
+                throw new AvroIOSchemaMatchException($writers_schema, $readers_schema);
+            }
+
+            $scale = $logicalTypeWriters->attributes()['scale'] ?? 0;
+            $mostSignificantBit = ord($bytes[0]) & 0x80;
+            $padded = str_pad($bytes, 8, $mostSignificantBit ? "\xff" : "\x00", STR_PAD_LEFT);
+            $int = unpack('J', $padded)[1];
+            $bytes = (string) ($scale > 0 ? ($int / (10 ** $scale)) : $int);
+        }
+
+        return $bytes;
     }
 
     /**
@@ -419,13 +442,12 @@ class AvroIODatumReader
     }
 
     /**
-     * @param AvroSchema $field_schema
      * @param null|boolean|int|float|string|array $default_value
      * @returns null|boolean|int|float|string|array
      *
      * @throws AvroException if $field_schema type is unknown.
      */
-    public function readDefaultValue($field_schema, $default_value)
+    public function readDefaultValue(AvroSchema $field_schema, $default_value)
     {
         switch ($field_schema->type()) {
             case AvroSchema::NULL_TYPE:
@@ -440,7 +462,7 @@ class AvroIODatumReader
                 return (float) $default_value;
             case AvroSchema::STRING_TYPE:
             case AvroSchema::BYTES_TYPE:
-                return $default_value;
+                return $this->readBytes($field_schema, $field_schema, $default_value);
             case AvroSchema::ARRAY_SCHEMA:
                 $array = array();
                 foreach ($default_value as $json_val) {
