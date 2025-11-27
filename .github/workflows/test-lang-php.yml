@@ -42,16 +42,13 @@ jobs:
           - ubuntu-latest
           - ubuntu-24.04-arm
         php:
-          - '7.3'
-          - '7.4'
-          - '8.0'
           - '8.1'
           - '8.2'
           - '8.3'
           - '8.4'
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -71,7 +68,11 @@ jobs:
             ${{ runner.os }}-composer-
 
       - name: Lint
+        if: matrix.php == '8.1'
         run: ./build.sh lint
+
+      - name: Static analysis
+        run: ./build.sh phpstan
 
       - name: Test
         run: ./build.sh test
@@ -84,16 +85,13 @@ jobs:
           - ubuntu-latest
           - ubuntu-24.04-arm
         php:
-          - '7.3'
-          - '7.4'
-          - '8.0'
           - '8.1'
           - '8.2'
           - '8.3'
           - '8.4'
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -136,7 +134,7 @@ jobs:
         working-directory: lang/java/avro
         run: mvn -B -P interop-data-generate generate-resources
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           repository: kjdev/php-ext-zstd
           path: lang/php/php-ext-zstd
@@ -152,7 +150,7 @@ jobs:
           echo "extension=zstd.so" | sudo tee -a /etc/php/${{ matrix.php }}/cli/conf.d/10-zstd.ini
           php -m
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           repository: kjdev/php-ext-snappy
           path: lang/php/php-ext-snappy

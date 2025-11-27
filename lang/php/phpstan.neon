@@ -13,26 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: 'Docker tests'
-on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'share/docker/*'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Run Docker tests
-        shell: bash
-        run: ./build.sh docker-test
+parameters:
+	level: 3
+	paths:
+		- lib
+		- test
+	bootstrapFiles:
+	    - test/test_helper.php
