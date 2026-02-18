@@ -54,6 +54,7 @@ remove-unused-variables = true
 [dependency-groups]
 dev = [
     "coverage>=7.13.4",
+    "librt>=0.8.1",
     "mypy>=1.19.1",
     "python-snappy>=0.7.3",
     "ruff>=0.15.1",
