@@ -42,6 +42,7 @@ jobs:
           - ubuntu-latest
           - ubuntu-24.04-arm
         python:
+          - "3.14"
           - "3.13"
           - "3.12"
           - "3.11"
@@ -92,10 +93,8 @@ jobs:
           - ubuntu-latest
           - ubuntu-24.04-arm
         python:
-          - "3.11"
-          - "3.10"
-          - "3.9"
-          - "pypy-3.10"
+          - "3.13"
+          - "3.12"
 
     steps:
       - uses: actions/checkout@v6
