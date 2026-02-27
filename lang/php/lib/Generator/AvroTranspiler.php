@@ -56,7 +56,6 @@ class AvroTranspiler
         string $path,
         string $phpNamespace
     ): array {
-        $this->registry = [];
         $this->buildRegistry($schema);
 
         $files = [];
@@ -93,30 +92,42 @@ class AvroTranspiler
         return $files;
     }
 
-    public function buildRegistry(AvroSchema $rootSchema): void
+    private function buildRegistry(AvroSchema $rootSchema): void
     {
+        $this->registry = [];
         $this->collectSchemas($rootSchema);
     }
 
     private function collectSchemas(AvroSchema $schema): void
     {
-        if ($schema instanceof AvroRecordSchema) {
-            if (!array_key_exists($schema->fullname(), $this->registry)) {
-                $this->registry[$schema->fullname()] = $schema;
-                foreach ($schema->fields() as $field) {
-                    $this->collectSchemas($field->type());
+        switch ($schema::class) {
+            case AvroRecordSchema::class:
+                if (!array_key_exists($schema->fullname(), $this->registry)) {
+                    $this->registry[$schema->fullname()] = $schema;
+                    foreach ($schema->fields() as $field) {
+                        $this->collectSchemas($field->type());
+                    }
                 }
-            }
-        } elseif ($schema instanceof AvroEnumSchema) {
-            $this->registry[$schema->fullname()] = $schema;
-        } elseif ($schema instanceof AvroArraySchema) {
-            $this->collectSchemas($schema->items());
-        } elseif ($schema instanceof AvroMapSchema) {
-            $this->collectSchemas($schema->values());
-        } elseif ($schema instanceof AvroUnionSchema) {
-            foreach ($schema->schemas() as $unionSchema) {
-                $this->collectSchemas($unionSchema);
-            }
+
+                break;
+            case AvroEnumSchema::class:
+                $this->registry[$schema->fullname()] = $schema;
+
+                break;
+            case AvroArraySchema::class:
+                $this->collectSchemas($schema->items());
+
+                break;
+            case AvroMapSchema::class:
+                $this->collectSchemas($schema->values());
+
+                break;
+            case AvroUnionSchema::class:
+                foreach ($schema->schemas() as $unionSchema) {
+                    $this->collectSchemas($unionSchema);
+                }
+
+                break;
         }
     }
 
@@ -133,6 +144,11 @@ class AvroTranspiler
                 ->makePrivate()
                 ->setType($phpType);
 
+            $phpDocType = $this->avroTypeToPhpDoc($field->type(), $phpNamespace);
+            if (null !== $phpDocType) {
+                $property->setDocComment('/** @var '.$phpDocType.' */');
+            }
+
             if ($field->hasDefaultValue()) {
                 $property->setDefault($this->buildDefault($field->defaultValue()));
             }
@@ -140,14 +156,20 @@ class AvroTranspiler
             $class->addStmt($property);
         }
 
-        // Add constructor
         $constructor = $this->factory->method('__construct')->makePublic();
+        $constructorParamDocs = [];
         foreach ($avroRecord->fields() as $field) {
             $phpType = $this->avroTypeToPhp($field->type(), $phpNamespace);
             $param = $this->factory->param($field->name())->setType($phpType);
             if ($field->hasDefaultValue()) {
                 $param->setDefault($this->buildDefault($field->defaultValue()));
             }
+
+            $phpDocType = $this->avroTypeToPhpDoc($field->type(), $phpNamespace);
+            if (null !== $phpDocType) {
+                $constructorParamDocs[] = '@param '.$phpDocType.' $'.$field->name();
+            }
+
             $constructor->addParam($param);
             $constructor->addStmt(
                 new Node\Expr\Assign(
@@ -156,9 +178,16 @@ class AvroTranspiler
                 )
             );
         }
+        if ([] !== $constructorParamDocs) {
+            $docLines = "/**\n";
+            foreach ($constructorParamDocs as $doc) {
+                $docLines .= ' * '.$doc."\n";
+            }
+            $docLines .= ' */';
+            $constructor->setDocComment($docLines);
+        }
         $class->addStmt($constructor);
 
-        // Add getters
         foreach ($avroRecord->fields() as $field) {
             $phpType = $this->avroTypeToPhp($field->type(), $phpNamespace);
             $getter = $this->factory->method($field->name())
@@ -169,6 +198,12 @@ class AvroTranspiler
                         new Node\Expr\PropertyFetch(new Node\Expr\Variable('this'), $field->name())
                     )
                 );
+
+            $phpDocType = $this->avroTypeToPhpDoc($field->type(), $phpNamespace);
+            if (null !== $phpDocType) {
+                $getter->setDocComment('/** @return '.$phpDocType.' */');
+            }
+
             $class->addStmt($getter);
         }
 
@@ -178,7 +213,7 @@ class AvroTranspiler
     }
 
     /**
-     * @param array<string> $values
+     * @param list<string> $values
      */
     private function buildEnum(
         AvroEnumSchema $avroEnum,
@@ -240,5 +275,53 @@ class AvroTranspiler
         }
 
         return $value;
+    }
+
+    /**
+     * Returns a PHPDoc type string for schemas that need richer type info than
+     * what PHP's native type system can express (arrays and maps), or null when
+     * the native type hint is sufficient.
+     */
+    private function avroTypeToPhpDoc(AvroSchema $schema, string $phpNamespace): ?string
+    {
+        return match (true) {
+            $schema instanceof AvroArraySchema => 'list<'.$this->avroTypeToPhpDocInner($schema->items(), $phpNamespace).'>',
+            $schema instanceof AvroMapSchema => 'array<string, '.$this->avroTypeToPhpDocInner($schema->values(), $phpNamespace).'>',
+            $schema instanceof AvroUnionSchema => $this->unionToPhpDoc($schema, $phpNamespace),
+            default => null,
+        };
+    }
+
+    private function avroTypeToPhpDocInner(AvroSchema $schema, string $phpNamespace): string
+    {
+        return match (true) {
+            $schema instanceof AvroPrimitiveSchema => $this->avroPrimitiveTypeToPhp($schema),
+            $schema instanceof AvroArraySchema => 'list<'.$this->avroTypeToPhpDocInner($schema->items(), $phpNamespace).'>',
+            $schema instanceof AvroMapSchema => 'array<string, '.$this->avroTypeToPhpDocInner($schema->values(), $phpNamespace).'>',
+            $schema instanceof AvroRecordSchema, $schema instanceof AvroEnumSchema => '\\'.$phpNamespace.'\\'.ucwords($schema->name()),
+            $schema instanceof AvroUnionSchema => $this->unionToPhp($schema, $phpNamespace),
+            default => 'mixed',
+        };
+    }
+
+    private function unionToPhpDoc(AvroUnionSchema $union, string $phpNamespace): ?string
+    {
+        $hasArrayOrMap = false;
+        $docParts = [];
+
+        foreach ($union->schemas() as $schema) {
+            if ($schema instanceof AvroArraySchema || $schema instanceof AvroMapSchema) {
+                $hasArrayOrMap = true;
+                $docParts[] = $this->avroTypeToPhpDocInner($schema, $phpNamespace);
+            } else {
+                $docParts[] = $this->avroTypeToPhp($schema, $phpNamespace);
+            }
+        }
+
+        if (!$hasArrayOrMap) {
+            return null;
+        }
+
+        return implode('|', array_unique($docParts));
     }
 }
