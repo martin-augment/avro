@@ -22,6 +22,6 @@ declare(strict_types=1);
 
 namespace Apache\Avro\Generator;
 
-class AvroTranspilerException extends \Exception
+class AvroCodeGeneratorException extends \Exception
 {
 }

@@ -22,18 +22,18 @@ declare(strict_types=1);
 
 namespace Apache\Avro\Tests\Generator;
 
-use Apache\Avro\Generator\AvroTranspiler;
+use Apache\Avro\Generator\AvroCodeGenerator;
 use Apache\Avro\Schema\AvroSchema;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
-class AvroTranspilerTest extends TestCase
+class AvroCodeGeneratorTest extends TestCase
 {
-    private AvroTranspiler $transpiler;
+    private AvroCodeGenerator $transpiler;
 
     public function setUp(): void
     {
-        $this->transpiler = new AvroTranspiler();
+        $this->transpiler = new AvroCodeGenerator();
     }
 
     #[Test]
@@ -84,7 +84,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace MyApp\Avro\Generated;
             
-            final class Lisp
+            final class Lisp implements \JsonSerializable
             {
                 private null|string|\MyApp\Avro\Generated\Cons \$value;
                 public function __construct(null|string|\MyApp\Avro\Generated\Cons \$value)
@@ -94,6 +94,10 @@ class AvroTranspilerTest extends TestCase
                 public function value(): null|string|\MyApp\Avro\Generated\Cons
                 {
                     return \$this->value;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['value' => \$this->value];
                 }
             }
 
@@ -108,7 +112,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace MyApp\Avro\Generated;
             
-            final class Cons
+            final class Cons implements \JsonSerializable
             {
                 private \MyApp\Avro\Generated\Lisp \$car;
                 private \MyApp\Avro\Generated\Lisp \$cdr;
@@ -124,6 +128,10 @@ class AvroTranspilerTest extends TestCase
                 public function cdr(): \MyApp\Avro\Generated\Lisp
                 {
                     return \$this->cdr;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['car' => \$this->car, 'cdr' => \$this->cdr];
                 }
             }
 
@@ -160,7 +168,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Model;
             
-            final class User
+            final class User implements \JsonSerializable
             {
                 private string \$name;
                 private int \$age;
@@ -188,6 +196,10 @@ class AvroTranspilerTest extends TestCase
                 public function score(): float
                 {
                     return \$this->score;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['name' => \$this->name, 'age' => \$this->age, 'active' => \$this->active, 'score' => \$this->score];
                 }
             }
 
@@ -260,7 +272,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Config;
             
-            final class Config
+            final class Config implements \JsonSerializable
             {
                 private int \$retries = 3;
                 private string \$label = 'default';
@@ -282,6 +294,10 @@ class AvroTranspilerTest extends TestCase
                 public function enabled(): bool
                 {
                     return \$this->enabled;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['retries' => \$this->retries, 'label' => \$this->label, 'enabled' => \$this->enabled];
                 }
             }
 
@@ -317,7 +333,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Music;
             
-            final class Playlist
+            final class Playlist implements \JsonSerializable
             {
                 private string \$name;
                 /** @var list<string> */
@@ -338,6 +354,10 @@ class AvroTranspilerTest extends TestCase
                 public function tags(): array
                 {
                     return \$this->tags;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['name' => \$this->name, 'tags' => \$this->tags];
                 }
             }
 
@@ -372,7 +392,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Data;
             
-            final class Metadata
+            final class Metadata implements \JsonSerializable
             {
                 /** @var array<string, string> */
                 private array \$properties;
@@ -387,6 +407,10 @@ class AvroTranspilerTest extends TestCase
                 public function properties(): array
                 {
                     return \$this->properties;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['properties' => \$this->properties];
                 }
             }
 
@@ -430,7 +454,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Vehicles;
             
-            final class Car
+            final class Car implements \JsonSerializable
             {
                 private string \$brand;
                 private \App\Vehicles\FuelType \$fuel;
@@ -446,6 +470,10 @@ class AvroTranspilerTest extends TestCase
                 public function fuel(): \App\Vehicles\FuelType
                 {
                     return \$this->fuel;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['brand' => \$this->brand, 'fuel' => \$this->fuel->value];
                 }
             }
 
@@ -499,7 +527,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Social;
             
-            final class Profile
+            final class Profile implements \JsonSerializable
             {
                 private string \$username;
                 private null|string \$bio = null;
@@ -515,6 +543,10 @@ class AvroTranspilerTest extends TestCase
                 public function bio(): null|string
                 {
                     return \$this->bio;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['username' => \$this->username, 'bio' => \$this->bio];
                 }
             }
 
@@ -556,7 +588,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Types;
             
-            final class AllTypes
+            final class AllTypes implements \JsonSerializable
             {
                 private null \$nullField;
                 private bool \$boolField;
@@ -609,6 +641,10 @@ class AvroTranspilerTest extends TestCase
                 {
                     return \$this->bytesField;
                 }
+                public function jsonSerialize(): mixed
+                {
+                    return ['nullField' => \$this->nullField, 'boolField' => \$this->boolField, 'intField' => \$this->intField, 'longField' => \$this->longField, 'floatField' => \$this->floatField, 'doubleField' => \$this->doubleField, 'stringField' => \$this->stringField, 'bytesField' => \$this->bytesField];
+                }
             }
 
             PHP;
@@ -657,7 +693,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Org;
             
-            final class Team
+            final class Team implements \JsonSerializable
             {
                 private string \$name;
                 /** @var list<\App\Org\Member> */
@@ -679,6 +715,10 @@ class AvroTranspilerTest extends TestCase
                 {
                     return \$this->members;
                 }
+                public function jsonSerialize(): mixed
+                {
+                    return ['name' => \$this->name, 'members' => \$this->members];
+                }
             }
 
             PHP;
@@ -692,7 +732,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Org;
             
-            final class Member
+            final class Member implements \JsonSerializable
             {
                 private string \$name;
                 private string \$role;
@@ -708,6 +748,10 @@ class AvroTranspilerTest extends TestCase
                 public function role(): string
                 {
                     return \$this->role;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['name' => \$this->name, 'role' => \$this->role];
                 }
             }
 
@@ -742,7 +786,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Events;
             
-            final class Event
+            final class Event implements \JsonSerializable
             {
                 private null|string|int|bool \$payload;
                 public function __construct(null|string|int|bool \$payload)
@@ -752,6 +796,10 @@ class AvroTranspilerTest extends TestCase
                 public function payload(): null|string|int|bool
                 {
                     return \$this->payload;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['payload' => \$this->payload];
                 }
             }
 
@@ -798,7 +846,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Shop;
             
-            final class Order
+            final class Order implements \JsonSerializable
             {
                 private int \$id;
                 private \App\Shop\Address \$address;
@@ -815,6 +863,10 @@ class AvroTranspilerTest extends TestCase
                 {
                     return \$this->address;
                 }
+                public function jsonSerialize(): mixed
+                {
+                    return ['id' => \$this->id, 'address' => \$this->address];
+                }
             }
 
             PHP;
@@ -828,7 +880,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Shop;
             
-            final class Address
+            final class Address implements \JsonSerializable
             {
                 private string \$street;
                 private string \$city;
@@ -844,6 +896,10 @@ class AvroTranspilerTest extends TestCase
                 public function city(): string
                 {
                     return \$this->city;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['street' => \$this->street, 'city' => \$this->city];
                 }
             }
 
@@ -928,7 +984,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\HR;
             
-            final class Employee
+            final class Employee implements \JsonSerializable
             {
                 private string \$name;
                 private null|\App\HR\Manager \$manager = null;
@@ -945,6 +1001,10 @@ class AvroTranspilerTest extends TestCase
                 {
                     return \$this->manager;
                 }
+                public function jsonSerialize(): mixed
+                {
+                    return ['name' => \$this->name, 'manager' => \$this->manager];
+                }
             }
 
             PHP;
@@ -958,7 +1018,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\HR;
             
-            final class Manager
+            final class Manager implements \JsonSerializable
             {
                 private string \$name;
                 private string \$department;
@@ -974,6 +1034,10 @@ class AvroTranspilerTest extends TestCase
                 public function department(): string
                 {
                     return \$this->department;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['name' => \$this->name, 'department' => \$this->department];
                 }
             }
 
@@ -1023,7 +1087,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Library;
             
-            final class Library
+            final class Library implements \JsonSerializable
             {
                 private string \$name;
                 /** @var array<string, \App\Library\Book> */
@@ -1045,6 +1109,10 @@ class AvroTranspilerTest extends TestCase
                 {
                     return \$this->books;
                 }
+                public function jsonSerialize(): mixed
+                {
+                    return ['name' => \$this->name, 'books' => \$this->books];
+                }
             }
 
             PHP;
@@ -1058,7 +1126,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Library;
             
-            final class Book
+            final class Book implements \JsonSerializable
             {
                 private string \$title;
                 private int \$pages;
@@ -1074,6 +1142,10 @@ class AvroTranspilerTest extends TestCase
                 public function pages(): int
                 {
                     return \$this->pages;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['title' => \$this->title, 'pages' => \$this->pages];
                 }
             }
 
@@ -1124,7 +1196,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Billing;
             
-            final class Invoice
+            final class Invoice implements \JsonSerializable
             {
                 private int \$id;
                 private \App\Billing\PostalAddress \$billingAddress;
@@ -1146,6 +1218,10 @@ class AvroTranspilerTest extends TestCase
                 public function shippingAddress(): \App\Billing\PostalAddress
                 {
                     return \$this->shippingAddress;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['id' => \$this->id, 'billingAddress' => \$this->billingAddress, 'shippingAddress' => \$this->shippingAddress];
                 }
             }
 
@@ -1180,7 +1256,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Config;
             
-            final class Settings
+            final class Settings implements \JsonSerializable
             {
                 /** @var list<string> */
                 private array \$tags = [];
@@ -1195,6 +1271,10 @@ class AvroTranspilerTest extends TestCase
                 public function tags(): array
                 {
                     return \$this->tags;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['tags' => \$this->tags];
                 }
             }
 
@@ -1231,7 +1311,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Inventory;
             
-            final class Item
+            final class Item implements \JsonSerializable
             {
                 private string \$name;
                 private int \$quantity = 1;
@@ -1253,6 +1333,10 @@ class AvroTranspilerTest extends TestCase
                 public function description(): string
                 {
                     return \$this->description;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['name' => \$this->name, 'quantity' => \$this->quantity, 'description' => \$this->description];
                 }
             }
 
@@ -1300,7 +1384,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Tasks;
             
-            final class Task
+            final class Task implements \JsonSerializable
             {
                 private string \$title;
                 private null|\App\Tasks\Priority \$priority = null;
@@ -1316,6 +1400,10 @@ class AvroTranspilerTest extends TestCase
                 public function priority(): null|\App\Tasks\Priority
                 {
                     return \$this->priority;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['title' => \$this->title, 'priority' => \$this->priority?->value];
                 }
             }
 
@@ -1373,7 +1461,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Reports;
             
-            final class Report
+            final class Report implements \JsonSerializable
             {
                 private string \$title;
                 /** @var null|list<int> */
@@ -1394,6 +1482,10 @@ class AvroTranspilerTest extends TestCase
                 public function scores(): null|array
                 {
                     return \$this->scores;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['title' => \$this->title, 'scores' => \$this->scores];
                 }
             }
 
@@ -1432,7 +1524,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\UI;
             
-            final class Dashboard
+            final class Dashboard implements \JsonSerializable
             {
                 /** @var null|array<string, string> */
                 private null|array \$widgets = null;
@@ -1447,6 +1539,10 @@ class AvroTranspilerTest extends TestCase
                 public function widgets(): null|array
                 {
                     return \$this->widgets;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['widgets' => \$this->widgets];
                 }
             }
 
@@ -1490,7 +1586,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Math;
             
-            final class Matrix
+            final class Matrix implements \JsonSerializable
             {
                 /** @var list<list<int>> */
                 private array \$rows;
@@ -1505,6 +1601,10 @@ class AvroTranspilerTest extends TestCase
                 public function rows(): array
                 {
                     return \$this->rows;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['rows' => \$this->rows];
                 }
             }
 
@@ -1548,7 +1648,7 @@ class AvroTranspilerTest extends TestCase
             
             namespace App\Search;
             
-            final class Index
+            final class Index implements \JsonSerializable
             {
                 /** @var array<string, list<string>> */
                 private array \$entries;
@@ -1563,6 +1663,10 @@ class AvroTranspilerTest extends TestCase
                 public function entries(): array
                 {
                     return \$this->entries;
+                }
+                public function jsonSerialize(): mixed
+                {
+                    return ['entries' => \$this->entries];
                 }
             }
 

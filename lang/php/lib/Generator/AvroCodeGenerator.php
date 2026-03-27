@@ -31,10 +31,11 @@ use Apache\Avro\Schema\AvroSchema;
 use Apache\Avro\Schema\AvroUnionSchema;
 use PhpParser\BuilderFactory;
 use PhpParser\Node;
+use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt;
 use PhpParser\PrettyPrinter\Standard;
 
-class AvroTranspiler
+class AvroCodeGenerator
 {
     private BuilderFactory $factory;
     private Standard $printer;
@@ -136,7 +137,7 @@ class AvroTranspiler
         string $phpNamespace
     ): Node {
         $className = ucwords($avroRecord->name());
-        $class = $this->factory->class($className)->makeFinal();
+        $class = $this->factory->class($className)->makeFinal()->implement('\\JsonSerializable');
 
         foreach ($avroRecord->fields() as $field) {
             $phpType = $this->avroTypeToPhp($field->type(), $phpNamespace);
@@ -207,9 +208,55 @@ class AvroTranspiler
             $class->addStmt($getter);
         }
 
+        $arrayItems = [];
+        foreach ($avroRecord->fields() as $field) {
+            $arrayItems[] = new Node\ArrayItem(
+                $this->buildJsonSerializeValue($field->type(), $field->name()),
+                new String_($field->name())
+            );
+        }
+        $jsonSerialize = $this->factory->method('jsonSerialize')
+            ->makePublic()
+            ->setReturnType('mixed')
+            ->addStmt(
+                new Stmt\Return_(
+                    new Node\Expr\Array_($arrayItems, ['kind' => Node\Expr\Array_::KIND_SHORT])
+                )
+            );
+        $class->addStmt($jsonSerialize);
+
         return $this->factory->namespace($phpNamespace)
             ->addStmt($class)
             ->getNode();
+    }
+
+    /**
+     * Builds the expression used inside jsonSerialize() for a single field.
+     *
+     * - EnumSchema        → $this->field->value       (plain string for Avro + JSON)
+     * - union[null, Enum] → $this->field?->value      (null-safe, still plain)
+     * - anything else     → $this->field
+     */
+    private function buildJsonSerializeValue(AvroSchema $fieldType, string $fieldName): Node\Expr
+    {
+        $propertyFetch = new Node\Expr\PropertyFetch(new Node\Expr\Variable('this'), $fieldName);
+
+        if ($fieldType instanceof AvroEnumSchema) {
+            return new Node\Expr\PropertyFetch($propertyFetch, 'value');
+        }
+
+        if ($fieldType instanceof AvroUnionSchema) {
+            $nonNullSchemas = array_values(array_filter(
+                $fieldType->schemas(),
+                static fn (AvroSchema $s): bool => !($s instanceof AvroPrimitiveSchema && AvroSchema::NULL_TYPE === $s->type())
+            ));
+
+            if (1 === count($nonNullSchemas) && $nonNullSchemas[0] instanceof AvroEnumSchema) {
+                return new Node\Expr\NullsafePropertyFetch($propertyFetch, 'value');
+            }
+        }
+
+        return $propertyFetch;
     }
 
     /**
@@ -254,7 +301,7 @@ class AvroTranspiler
             AvroSchema::INT_TYPE, AvroSchema::LONG_TYPE => 'int',
             AvroSchema::FLOAT_TYPE, AvroSchema::DOUBLE_TYPE => 'float',
             AvroSchema::STRING_TYPE, AvroSchema::BYTES_TYPE => 'string',
-            default => throw new AvroTranspilerException("Unknown primitive type: ".$primitiveSchema->type()),
+            default => throw new AvroCodeGeneratorException("Unknown primitive type: ".$primitiveSchema->type()),
         };
     }
 
